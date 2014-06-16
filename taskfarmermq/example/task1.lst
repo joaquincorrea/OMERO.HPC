@@ -1,0 +1,4 @@
+uname -a -xxx > ./out-uname/1.uname.out:./out-uname/1.uname.out:0
+uname -a > ./out-uname/2.uname.out:./out-uname/2.uname.out:0
+uname -a > ./out-uname/3.uname.out:./out-uname/2.uname.out,./out-uname/3.uname.out:0
+uname -a > ./out-uname/4.uname.out:./out-uname/5.uname.out:0

@@ -1,0 +1,743 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# Written (W) 2012-2013 Seung-Jin Sul (ssul@lbl.gov)
+# Copyright (C) NERSC, LBL
+
+"""
+
+TaskfarmerMQ client: Read user-specified task list from a file and send the list
+to the message broker, mq.nersc.gov with user
+
+USAGE:
+
+tfmq-client [-h] -i TASKFILENAME [-q TASKQUEUENAME] [-w] [-r] [-m] [-l DEBUGLEVEL]
+
+    -i,--tf: Set user task list file
+
+    -q,--tq: *THIS IS OPTIONAL* Set user-specified queue name (*NOTE: If you set
+    your queue name with this option, you SHOULD set the same queue name when
+    you start the worker using -q/--tq). If not set, a default queue name will
+    be used.
+
+    -w,--reuse: Disable worker termination option. If it is not set, all workers
+    will be terminated after completion; If set, all workers will stay running
+    for being reused to process other tasks.
+
+    -r,--report: Enable printing the resource usages like cpu and memory usage,
+    and runtime for all workers running. If you set this, the client will print
+    out the resource usage in the following format:
+
+        <host_name>,<parent_pid>,<user_command_pid>,<cpu_usage>,<memory_usage(RSS)>,
+        <memory_usage(VMS)>,<run_time>,<node_mem_avail(%)>,<num_workers_on_the_node>
+
+
+    -m,--nodemem: Enable warninng on the memory usage (%) if a node's memory
+    usage is over the specified threshold (default: 90%)
+    
+    -d, --sqlite: Enable using sqlite db for task list management.
+
+"""
+
+from Config import *
+from Common import *
+from Utils.RabbitmqConnection import *
+
+
+print "Tfmq version: ", VERSION
+
+#-------------------------------------------------------------------------------
+# Globals
+#-------------------------------------------------------------------------------
+g_numProcessed = 0      ## number of processed tasks
+g_numSuccess = 0        ## number of successful runs
+g_numTasks = 0          ## number of tasks sent to the worker(s)
+g_taskFileName = ""
+g_taskQueueName = ""
+g_resultQueueName = ""
+g_bWorkerReuse = False
+g_bPrintNodeMemUsage = False
+g_bUseSqlite = False
+sqliteConn = None
+sqliteCurr = None
+
+
+"""
+callback function for basic_consume
+
+@param ch: channel
+@param method: methodFrame
+@param props: pika connection property
+@param body: message recv'd
+"""
+#-------------------------------------------------------------------------------
+def on_result(ch, method, props, body):
+#------------------------------------------------------------------------------- 
+    ## Uncompress msg
+    msgUnzipped = zloads(body)
+    
+    ## To do: Fix ch closed issue
+    ##
+    ## Get the remaining tasks in the task queue
+    ## If g_bWorkerReuse == False and numTasksInTheTaskQueue =0, kill all the workers
+    ##
+    #try:
+    #    result = ch.queue_declare(queue=g_taskQueueName, passive=True)
+    #    numTasksInTheTaskQueue = result.method.message_count
+    #    logger.info("Number of remaining tasks in the queue: %s", numTasksInTheTaskQueue)
+    #    if g_bWorkerReuse and numTasksInTheTaskQueue == 0:
+    #        logger.info("Send TERM signal to all workers.")
+    #        kill_all_workers(ch)
+    #except:
+    #    logger.exception("The main channel is closed.")
+    #    return
+        
+
+    ## Send ack
+    ch.basic_ack(delivery_tag = method.delivery_tag)
+    
+    if not g_bUseSqlite:
+        ##
+        ## Make a report file
+        ## copy origFile to origFile.done and update origFile.done.
+        ## This file can be used as the next task list input file if there is any failed job
+        ##
+        origTaskListFile = os.path.join(os.getcwd(), g_taskFileName)
+        newTaskListFile = '%s.done' % (origTaskListFile)
+        
+        if not os.path.isfile(newTaskListFile):
+            try:
+                shutil.copy(origTaskListFile, newTaskListFile)
+            except IOError, detail:
+                logger.exception("Exception: Failed to copy the task list file. %s" % str(detail))
+                sys.exit(1)
+    
+        ##
+        ## Update each line of the user task list file based on the result
+        ## To do: more efficient file processing? 
+        ##
+        bReplaced = False
+        lineNum = 0
+        for line in fileinput.input(newTaskListFile, inplace=1):
+            if len(line) > 1:
+                lineNum += 1
+                if not bReplaced and lineNum == int(msgUnzipped["taskId"]):
+                    bReplaced = True
+                    ## This print will update newTaskListFile
+                    print "%s:%s" % (":".join(line.rstrip().split(':')[:-1]), msgUnzipped["doneFlag"])
+                else:
+                    ## This print will rewrite unchaged line to newTaskListFile
+                    print line.rstrip()
+    
+    else:
+        assert(sqliteConn)
+        assert(sqliteCurr)
+        sqliteCurr.execute("UPDATE tasks SET doneFlag=? WHERE taskId=?", \
+                           (msgUnzipped["doneFlag"], int(msgUnzipped["taskId"])))
+        
+        ## NOTE: need to commit immediately
+        sqliteConn.commit()
+    
+    
+    
+    global g_numProcessed
+    g_numProcessed += 1
+
+    ##
+    ## Print report
+    ##
+    if msgUnzipped["doneFlag"] == "-1":
+        logger.info('Task %s --> %s' % (g_numProcessed, msgUnzipped["retMsg"]))
+    elif msgUnzipped["doneFlag"] == "-2":
+        logger.info('Task %s --> Failed with non-zero exit code. stdout = %s' % \
+                    (g_numProcessed, msgUnzipped["retMsg"]))
+    else:
+        logger.info('Task %s --> Success' % (g_numProcessed))
+        global g_numSuccess
+        g_numSuccess += 1
+        
+    ## Check the exit condition
+    if (g_numTasks == g_numProcessed):
+        ch.stop_consuming()
+        logger.info("Progress report: %d (#successful) / %d (#total) (%0.2f %%)" % \
+                    (g_numSuccess, g_numProcessed, 100*float(g_numSuccess)/g_numProcessed))
+        
+        ## make tasklist.done file
+        ##
+        if g_bUseSqlite:
+            origTaskListFile = os.path.join(os.getcwd(), g_taskFileName)
+            newTaskListFile = '%s.done' % (origTaskListFile)
+        
+            #cur = sqliteConn.cursor()
+            cur = sqliteCurr
+            cur.execute("SELECT * FROM tasks")
+            rows = cur.fetchall()
+            
+            with open(newTaskListFile, "w") as newFH:
+                for task in rows:
+                    taskString = "%s:%s:%s\n" % (task[1],task[2],task[3])
+                    newFH.write(taskString)
+                    
+                    
+
+"""
+Load user task list from taskFileName
+
+@param taskList: list of loaded tasks
+@param taskFileName: user task list file name
+"""
+#-------------------------------------------------------------------------------
+def load_task(taskList, taskFileName, log=None):
+#-------------------------------------------------------------------------------
+    tid = 0
+    numTasksNotToRun = 0 ## num tasks commented out by "#"
+    numTasks = 0
+    numTasksDone = 0
+    
+    cur = None
+    if sqliteConn is not None:
+        if log: log.info("Create tasks table and load tasks into sqlite db.")
+        #cur = sqliteConn.cursor()
+        cur = sqliteCurr
+        
+        ## Sqlite3 perforamnce tuning
+        ##
+        ## Ref: http://www2.sqlite.org/cvstrac/wiki?p=PerformanceTuningWindows
+        cur.execute("PRAGMA page_size=4096")
+        cur.execute("DROP TABLE IF EXISTS tasks")
+    
+        ## "INTEGER PRIMARY KEY" should always be the best for gettting it faster        
+        cur.execute("CREATE TABLE tasks(taskId INTEGER PRIMARY KEY, userCmd VARCHAR(1024), outFiles VARCHAR(1024), doneFlag VARCHAR(2))")
+        ##
+        ## Usually it's faster if the index is creaated after all items are inserted.
+        ## So moved to after all insertion
+        #cur.execute("CREATE INDEX task_id_idx ON tasks (taskId)")
+        #cur.execute("BEGIN TRANSACTION")
+        
+        
+    with open(taskFileName,"r") as infile:
+        for l in infile:
+            if len(l) > 1:
+                if l.startswith('#'): numTasksNotToRun += 1
+                tid += 1
+                toks = l.strip().split(':')
+                assert (len(toks) == 3)
+                
+                ## if already done
+                if toks[2].strip() == "1": numTasksDone += 1
+                
+                ## NOTE: always load all tasks but only send tasks which has not been done yet.
+                ##
+                #if toks[2].strip() != "1": 
+                if True: 
+                    numTasks += 1
+                    if sqliteConn is None:
+
+                        aTask = {}
+                        aTask["taskId"] = tid
+                        aTask["userCmd"] = (toks[0])
+                        aTask["outFiles"] = (toks[1])
+                        aTask["doneFlag"] = (toks[2])
+                        taskList.append(aTask)
+
+                    else:
+                        assert(len(toks[0]) <= 1024)
+                        assert(len(toks[1]) <= 1024)
+                        assert(cur is not None)
+                        cur.execute("INSERT INTO tasks VALUES(%s, '%s', '%s', '%s')" % \
+                                    (tid, toks[0], toks[1], toks[2]))
+                        
+    
+    if sqliteConn and cur:
+        #cur.execute("END TRANSACTION")
+        sqliteConn.commit()
+        cur.execute("CREATE INDEX task_id_idx ON tasks (taskId)")
+
+
+    
+    
+    return numTasks, numTasks-numTasksNotToRun-numTasksDone
+
+
+"""
+Receive hearbeats from all the workers running
+
+@param hbQueueName: queue name to listen to
+@param parentPid: to kill the parent for termination
+@param commq: process communication queue b/w parent and child process to
+              notify the number of workers
+@param hbeatProc: sending hearbeat thread handle (to kill it)
+@param bShowUsageReport: resource reporting option
+"""
+#-------------------------------------------------------------------------------
+def recv_hb_from_workers_thread(hbQueueName, parentPid, commq, hbeatProc, bShowUsageReport=False):
+#-------------------------------------------------------------------------------
+    ## Remote broker (mq.nersc.gov)
+    rabbitConnection = RmqConnection()
+    conn = rabbitConnection.open()
+    ch = conn.channel()
+
+    ## To do
+    ## Do we have to have a separate worker hb exchange?
+    ##
+    
+    #ch.exchange_declare(exchange=exchName,
+    #                    type='direct', durable=False, auto_delete=True)
+
+    ##
+    ## This queue can be declared from workers first.
+    ##
+    try:
+        ch.queue_declare(queue=hbQueueName,
+                         durable=False, exclusive=True, auto_delete=True)
+    except Exception, detail:
+        logger.exception("Exception: The queue, %s is in use. Please check if any other client is running with the same queue name." % \
+                         (g_resultQueueName))
+        logger.exception("Detail: %s", str(detail))
+        sys.exit(1)
+        
+    #ch.queue_bind(exchange=exchName, queue=hbQueueName)    
+
+    bCleared = False
+    bFound = False
+    numWorkerCheck = 0
+    interval = CLIENT_HB_RECEIVE_INITIAL_INTERVAL ## initial interval for checking worker heartbeat. Default=1 sec
+    intervalIncRate = CLIENT_HB_RECEIVE_INT_INC_MUL ## Increase multiplier. Default=2.0
+    
+    while 1:
+        pids = {}
+        
+        try:
+            methodFrame, headerFrame, body = ch.basic_get(queue=hbQueueName, no_ack=True)
+            
+            ## clear
+            #if methodFrame:
+            #    for i in range(int(methodFrame.message_count)):
+            #        methodFrame, headerFrame, body = ch.basic_get(queue=hbQueueName,
+            #                                                      no_ack=True)
+        except Exception, detail:
+            logger.exception("Exception: Failed to get a message from %s." % (hbQueueName))
+            logger.exception("Detail: %s", str(detail))
+            sys.exit(1)
+
+        #interval = 1 # initial interval for checking worker heartbeat
+
+        if body and not bCleared:
+            ##
+            ## To clear up any heartbeat messages left in the heartbeat queue.
+            ##
+            for i in range(int(methodFrame.message_count)):
+                methodFrame, headerFrame, body = ch.basic_get(queue=hbQueueName, no_ack=True)
+                
+            bCleared = True
+
+        elif body and bCleared:
+            ##
+            ## To deal with the heartbeats from the worker(s). The workers send
+            ## each hostname and pid. Using "dict", get the number of unique
+            ## pids of the runninng workers. If nTotalWorkers > 0 then notify the
+            ## parent to start sending tasks by "commq.put()"
+            ##
+            toks = str(body).split()
+            assert(len(toks) > 3)
+
+            ## NOTE: Workers send it's hb interval to the client in the msg packet.
+            ## Set the checking heartbeat as (tfmq-worker's sending heartbeat
+            ## interval value * intervalIncRate)
+            interval = int(toks[2]) * intervalIncRate ## Hope this to evade from failing to recieve workers' hb
+            pids[int(toks[1])] = ""
+            nTotalWorkers = 0
+            
+            for i in range(int(methodFrame.message_count)):
+                methodFrame, headerFrame, body = ch.basic_get(queue=hbQueueName, no_ack=True)
+                toks = str(body).split()
+                
+                if g_bPrintNodeMemUsage and float(toks[-2]) >= OOM_WARNING_THRESH:
+                    logger.warning("%s%s of memory used on node %s" % (toks[-2], '%', toks[0]))
+                if bShowUsageReport:
+                    logger.resource(",".join(toks[i] for i in range(len(toks)) if i != 2))
+                
+                pids[int(toks[1])] = ""
+
+            nTotalWorkers = len(pids)
+            logger.info("Recv'd heartbeats from %d worker(s)" % (nTotalWorkers))
+
+            if nTotalWorkers > 0:
+                bFound = True
+                numWorkerCheck = 0 ## reinitialize
+            #else: bFound = False ## TODO: ???????????????????
+            
+            commq.put(nTotalWorkers) ## Let the tasks be sent to workers
+
+        elif not body and bCleared and bFound:
+            ##
+            ## If we are here, unfortunately, we lost all the workers that we've
+            ## been using.
+            ##
+            logger.critical("No workers found. Recheck#=%d" % (numWorkerCheck))
+            numWorkerCheck += 1
+
+            ## NOTE: 2013.09.05 To prevent from failing to detect workers
+            intervalIncRate = intervalIncRate * CLIENT_HB_RECEIVE_INT_INC_RATE ## increase interval. default=1.2
+            
+            if numWorkerCheck > 20: ## hit the max checking limit
+                
+                ## NOTE: 2013.09.03 Use sqlite instead of file operation
+                if g_bUseSqlite:
+                    origTaskListFile = os.path.join(os.getcwd(), g_taskFileName)
+                    newTaskListFile = '%s.done' % (origTaskListFile)
+                
+                    #cur = sqliteConn.cursor()
+                    cur = sqliteCurr
+                    cur.execute("SELECT * FROM tasks")
+                    rows = cur.fetchall()
+                    
+                    with open(newTaskListFile, "w") as newFH:
+                        for task in rows:
+                            taskString = "%s:%s:%s\n" % (task[1],task[2],task[3])
+                            newFH.write(taskString)
+                    
+                    
+                ## Close connection and kill parent and itself
+                conn.close()
+                commq.close()
+                hbeatProc.terminate()
+                os.kill(int(parentPid), signal.SIGTERM)
+                sys.exit(1)
+                            
+        #else:
+            #logger.info("Waiting for worker(s).")
+
+
+        ## To do
+        ## Need to start with shorted interval like (0.5-1 sec) for about 30 sec
+        ## from the beginning and then use the user specified interval
+        time.sleep(interval)
+        
+    conn.close()
+
+"""
+Broadcast heartbeat to all workers
+
+Ref) http://www.rabbitmq.com/tutorials/tutorial-three-python.html
+
+@param hbInt: heartbeat sending interval
+@param exchName: exchange name
+"""
+#-------------------------------------------------------------------------------
+def send_hb_to_workers_thread(hbInt, exchName):
+#-------------------------------------------------------------------------------
+    ## Remote broker (mq.nersc.gov)
+    rabbitConnection = RmqConnection()
+    conn = rabbitConnection.open()
+    ch = conn.channel()
+
+    ch.exchange_declare(exchange=exchName,
+                        type='fanout', durable=False, auto_delete=True)
+    message = "ok"
+    while 1:
+        ch.basic_publish(exchange=exchName, routing_key='', body=message)
+        logger.debug("Send HB to workers: %r" % (message,))
+        time.sleep(hbInt)
+
+    conn.close()
+
+
+"""
+Send termination signal to all the workers
+
+@param ch: channel 
+"""
+#-------------------------------------------------------------------------------
+def kill_all_workers(ch):
+#-------------------------------------------------------------------------------
+    msgContainer = {}
+    msgContainer["taskId"] = -9
+    msgZipped = zdumps(msgContainer)
+
+    try:
+        ch.basic_publish(exchange='', routing_key=g_taskQueueName, body=msgZipped,)
+    except Exception, detail:
+        logger.exception("Exception: Failed to submit a TERM signal to the workers.")
+        logger.exception("Detail: %s", str(detail))
+        sys.exit(1)
+    
+
+#-------------------------------------------------------------------------------
+def main(argv):
+#-------------------------------------------------------------------------------
+    desc = u'taskfarmermq client'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('-i', '--taskfile',
+                        help='User task file. File format: <user_command>:<output_file_to_check>:<done_flag>. You can set any number of commands using \';\' separator; Output files to check can be a list of absolute paths to the files to check separated by \',\'; The initial value of done_flag should be \'0\' and it will be set either \'1\' or other error codes after the task is completed. Error_code==-1 -> output file checking error, error_code==-2 -> caught non-zero exit code. Once a round of run, <task_file>.done file will be generated with the done_flag fields updated. The *.done file can be used for subsequent processes to run the rest of tasks in the task_file.',
+                        dest='taskFileName', required=True)
+    parser.add_argument('-l', '--loglevel',
+                        help='loglevel (default=info)',
+                        dest='logLevel', required=False, default="info")
+    parser.add_argument('-m', '--nodemem', action='store_true',
+                        help='Percent memory usage per node.',
+                        dest='nodeMemUsage', required=False)
+    parser.add_argument('-q', '--taskqueue',
+                        help='User-specified task queue name. If you set this, please make sure that passing the same queue name to your tfmq-worker.',
+                        dest='taskQueueName', required=False, default="default")
+    parser.add_argument('-r', '--report', action='store_true',
+                        help='report usage report. Display format: <host_name>,<parent_pid>,<user_command_pid>,<cpu_usage>,<memory_usage(RSS)>,<memory_usage(VMS)>,<run_time>,<node_mem_avail>,<num_workers_on_the_node>.',
+                        dest='usageReport', required=False)
+    parser.add_argument('-w', '--reuse', action='store_false',
+                        help='Enable worker reuse. Even after all tasks are completed, the workers are kept alive and waiting for other tasks.',
+                        dest='workerReuse', required=False)
+    parser.add_argument('-d', '--sqlite', action='store_true',
+                        help='Enable using sqlite db for task list management.',
+                        dest='useSqlite', required=False)
+    parser.add_argument('-v', '--version', action='version', version=VERSION) ## VERSION <- Config.py
+    args = parser.parse_args()
+
+    ## Logger setting
+    setup_custom_logger(args.logLevel, CLIENT_FILE_LOGGING)
+
+    ## Setting globals
+    global g_bWorkerReuse
+    g_bWorkerReuse = args.workerReuse
+    global g_taskFileName
+    g_taskFileName = args.taskFileName
+    global g_bPrintNodeMemUsage
+    g_bPrintNodeMemUsage = args.nodeMemUsage
+    global g_taskQueueName
+    g_taskQueueName = '%s_%s%s' % (getpass.getuser().upper(), args.taskQueueName,
+                                   TASKQ_POSTFIX)
+    global g_bUseSqlite
+    g_bUseSqlite = args.useSqlite
+    
+    ## Remote broker (mq.nersc.gov)
+    rabbitConnection = RmqConnection()
+    conn = rabbitConnection.open()
+    ch = conn.channel()
+    
+    ##
+    ## Declare task sending queue (client --> worker)
+    ##
+    ## This queue can be declared from worker side. BUT
+    ## This should be done here to enable client to send the tasks to the
+    ## taskqueue. If it is not called here, the client should be run after
+    ## checking if the worker is already running so that we can ensure that
+    ## the task queue is already declared and safe to be used by the client.
+    ##
+    ## Update: Now do not need to declare this queue. The client will wait for
+    ## any workers which starts running and then send the task to the broker.
+    ##
+    #ch.queue_declare(queue=g_taskQueueName,
+    #                 durable=False, exclusive=True, auto_delete=True)
+
+    ##
+    ## Declare result recv queue (worker --> client)
+    ##
+    ## If you have a queueu that is durable, RabbitMQ will never lose our queue.
+    ## If you have a queue that is exclusive, then when the channel that declared
+    ## the queue is closed, the queue is deleted.
+    ## If you have a queue that is auto-deleted, then when there are no
+    ## subscriptions left on that queue it will be deleted.
+    ##
+    global g_resultQueueName
+
+    ##
+    ## Result queue name shouldn't be a random to prevent redundant runs of
+    ## the client with the same task file name.
+    ##
+    g_resultQueueName = '%s_%s%s' % (getpass.getuser().upper(),
+                                     g_taskFileName,
+                                     RESUQ_POSTFIX)
+    try:
+        ch.queue_declare(queue=g_resultQueueName,
+                         durable=False, exclusive=True, auto_delete=True)
+    except Exception, detail:
+        logger.exception("Exception: The queue, %s is already in use. Please check if any other client is running." % \
+                         (g_resultQueueName))
+        logger.exception("Detail: %s", str(detail))
+        #sys.exit(1)
+        return 1
+
+    corr_id = str(uuid.uuid4())
+
+    logger.info("RabbitMQ broker: %s" % (RMQ_HOST))
+    logger.info("Task queue name: %s", g_taskQueueName)
+    logger.info("Result queue name: %s", g_resultQueueName)
+    logger.debug("Tag id: %s", corr_id)
+
+    ##
+    ## Loading task...
+    ##
+    taskList = []
+    global g_numTasks
+    
+    global sqliteConn
+    sqliteConn = None
+    global sqliteCurr
+    sqliteCurr = None
+    
+    if g_bUseSqlite:
+        import sqlite3 as sqlite
+        sqliteConn = sqlite.connect(g_taskFileName+'.db') ## set global var
+        sqliteConn.execute("PRAGMA cache_size = 1000000")  #1GB
+        ##
+        ## Ref: http://stackoverflow.com/questions/1711631/how-do-i-improve-the-performance-of-sqlite
+        ##
+        sqliteConn.execute("PRAGMA journal_mode = OFF") ## or journal_mode = MEMORY
+        sqliteConn.execute("PRAGMA synchronous = OFF")
+        sqliteConn.execute("PRAGMA temp_store = MEMORY")
+        sqliteCurr = sqliteConn.cursor() ## set global var
+        
+    totalNumTasks, g_numTasks = load_task(taskList, g_taskFileName, log=logger)
+        
+    logger.info("Total %d task(s) are loaded from '%s' and %s task(s) need to run. " % \
+                (totalNumTasks, g_taskFileName, g_numTasks))
+    
+    if g_numTasks == 0:
+        print "All done."
+        return 0
+
+    ##
+    ## Start heartbeat checking subprocess
+    ##
+    clientHeartbeatExchangeName = '%s_%s%s' % (getpass.getuser().upper(),
+                                               args.taskQueueName,
+                                               CLIENT_HB_EXCH)
+    sendHbToWorkersProc = multiprocessing.Process(target=send_hb_to_workers_thread,
+                                                  args=(CLIENT_HB_SEND_INTERVAL,
+                                                        clientHeartbeatExchangeName))
+    sendHbToWorkersProc.daemon = True
+    sendHbToWorkersProc.start()
+    logger.info('Broadcasting heartbeats to workers...')
+
+    threadCommQ = multiprocessing.Queue() ## communication queue b/w parent and child procs
+    workerHeartbeatQueueName = '%s_%s%s' % (getpass.getuser().upper(), args.taskQueueName, WORKER_HB_POSTFIX)
+    recvHbFromWorkersProc = multiprocessing.Process(target=recv_hb_from_workers_thread,
+                                                    args=(workerHeartbeatQueueName,
+                                                          os.getpid(),
+                                                          threadCommQ,
+                                                          sendHbToWorkersProc,
+                                                          #workerHeartbeatExchangeName,
+                                                          args.usageReport))
+    recvHbFromWorkersProc.daemon = True
+    recvHbFromWorkersProc.start()
+    logger.info('Waiting for worker\'s heartbeats from %s...' %
+                (workerHeartbeatQueueName))
+    
+    ## This is to wait for a signal to proceed the client's work.
+    ## This queue should be empty until the client finds any worker.
+    ##
+    threadCommQ.get() ## Wait for a worker
+
+    ##
+    ## Send tasks to the worker(s)
+    ##
+    logger.info("Sending requests to worker(s)...")
+    
+    if not g_bUseSqlite:
+        for task in taskList:
+            #msgContainer = {}
+            #msgContainer["taskId"] = task["taskId"]
+            #msgContainer["userCmd"] = task["userCmd"]
+            #msgContainer["outFiles"] = task["outFiles"]
+            #msgContainer["doneFlag"] = task["doneFlag"]
+            #msgZipped = zdumps(msgContainer)
+    
+            ## Process user task list with donFlat != 1
+            if task["doneFlag"] != "1" and not task["userCmd"].startswith('#'):
+                msgContainer = {}
+                msgContainer["taskId"] = task["taskId"]
+                msgContainer["userCmd"] = task["userCmd"]
+                msgContainer["outFiles"] = task["outFiles"]
+                msgContainer["doneFlag"] = task["doneFlag"]
+                msgZipped = zdumps(msgContainer)
+                
+                #logger.info("Req sent: taskid = %s %s", task["taskId"], str(msgContainer))
+                try:
+                    ch.basic_publish(exchange='',
+                                     routing_key=g_taskQueueName,
+                                     body=msgZipped,
+                                     properties=pika.BasicProperties(
+                                            delivery_mode = 2, ## make message persistent
+                                            reply_to = g_resultQueueName, ## set returning queue name
+                                            correlation_id = corr_id))
+                except Exception, detail:
+                    logger.exception("Exception: Failed to send a request to %s" % (g_taskQueueName))
+                    logger.exception("Detail: %s", str(detail))
+                    sys.exit(1)
+    
+    if g_bUseSqlite and sqliteConn is not None:
+        #global cur
+        #cur = sqliteConn.cursor()
+        cur = sqliteCurr
+        cur.execute("SELECT * FROM tasks")
+        rows = cur.fetchall()
+        
+        for task in rows:
+            #msgContainer = {}
+            #msgContainer["taskId"] = task[0]
+            #msgContainer["userCmd"] = task[1]
+            #msgContainer["outFiles"] = task[2]
+            #msgContainer["doneFlag"] = task[3]
+            #msgZipped = zdumps(msgContainer)
+    
+            ## Process user task list with donFlat != 1
+            if task[3] != "1" and not task[1].startswith('#'):
+                msgContainer = {}
+                msgContainer["taskId"] = task[0]
+                msgContainer["userCmd"] = task[1]
+                msgContainer["outFiles"] = task[2]
+                msgContainer["doneFlag"] = task[3]
+                msgZipped = zdumps(msgContainer)
+                
+                #logger.info("Req sent: taskid = %s %s", task["taskId"], str(msgContainer))
+                try:
+                    ch.basic_publish(exchange='',
+                                     routing_key=g_taskQueueName,
+                                     body=msgZipped,
+                                     properties=pika.BasicProperties(
+                                            delivery_mode = 2, ## make message persistent
+                                            reply_to = g_resultQueueName, ## set returning queue name
+                                            correlation_id = corr_id))
+                except Exception, detail:
+                    logger.exception("Exception: Failed to send a request to %s" % (g_taskQueueName))
+                    logger.exception("Detail: %s", str(detail))
+                    sys.exit(1)
+                    
+                    
+    ##
+    ## Broadcast TERM signal to workers if "-w = 0"
+    ##
+    if g_bWorkerReuse:
+        logger.info("")
+        logger.info("All workers will be terminated after completion.")
+        logger.info("")
+        kill_all_workers(ch)
+    else:
+        logger.info("")
+        logger.info("All workers will stay running after completion.")
+        logger.info("")
+    ##
+    ## Wait for the resutls from worker(s)
+    ##
+    ch.basic_qos(prefetch_count=1) ## Not to give more than 1 message to the worker
+    ch.basic_consume(on_result, queue=g_resultQueueName, no_ack=False)
+    ch.start_consuming()
+
+    conn.close()
+    threadCommQ.close()
+    recvHbFromWorkersProc.terminate()
+    sendHbToWorkersProc.terminate()
+    if sqliteConn: sqliteConn.close()
+    
+    print "All done."
+
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+
+
+# EOF

@@ -1,0 +1,4 @@
+/jgi/tools/bin/blastall -b 100 -v 100 -K 100 -p blastn -S 3 -d ./data/hs.m51.D4.diplotigs+fullDepthIsotigs.fa -e 1e-10 -F F -W 41 -i ./data/blast_query_1_160.fna -m 8 -o ./out-blastn/test1.m8.bout:./out-blastn/test1.m8.bout:0
+/jgi/tools/bin/blastall -b 100 -v 100 -K 100 -p blastn -S 3 -d ./data/hs.m51.D4.diplotigs+fullDepthIsotigs.fa -e 1e-10 -F F -W 41 -i ./data/blast_query_1_160.fna -m 8 -o ./out-blastn/test2.m8.bout:./out-blastn/test1.m8.bout,./out-blastn/test2.m8.bout:0
+/jgi/tools/bin/blastall -b 100 -v 100 -K 100 -p blastn -S 3 -d ./data/hs.m51.D4.diplotigs+fullDepthIsotigs.fa -e 1e-10 -F F -W 41 -i ./data/blast_query_1_160.fna -m 8 -o ./out-blastn/test3.m8.bout:./out-blastn/test4.m8.bout:0
+

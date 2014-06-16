@@ -1,0 +1,551 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# Written (W) 2012-2013 Seung-Jin Sul (ssul@lbl.gov)
+# Copyright (C) NERSC, LBL
+
+"""
+
+TaskfarmerMQ-worker: Pops a message from the queue from mq.nersc.gov and runs it.
+Upon completion, checks the outout files if specified and sends back the result
+to the result queue.
+
+USAGE:
+
+tfmq-worker [-h] [-q TASKQUEUENAME] [-b HBINTERVAL] [-t TIMEOUT] [-l DEBUGLEVEL]
+
+    -q/--taskqueue: Set user-defined queue name. If you set a different queue name for
+    running tfmq-client, you SHOULD set the same name when you run the worker.
+
+    -b/--heartbeat: Set the time interval to send heartbeat
+    to the client. Default: 10 seconds.
+
+    -t/--timeout: Set the timer for worker to terminate. If there is no request
+    from the client for the specified seconds, the worker terminates itself.
+    Default: 30 seconds.
+    
+    -z/--zerofile: Allow zero-sized output file(s)
+
+"""
+
+from Config import *
+from Common import *
+from Utils.ResourceUsage import *
+from Utils.RabbitmqConnection import *
+
+print "Tfmq version: ", VERSION
+
+#-------------------------------------------------------------------------------
+# Globals
+#-------------------------------------------------------------------------------
+g_recvHbFromClientProc = None
+g_sendHbToClientProc = None
+g_userProcPid = multiprocessing.Value('i', 0)
+g_allowZeroOutputFile = False ## False ==> if size(sepcified output file)==0, error
+
+
+"""
+Run a user command in msgZipped
+
+@param msgZipped: compressed msg from client
+@type msgZipped: dict with the taskID, userCmd, outFiles
+"""
+#-------------------------------------------------------------------------------
+def run_something(msgZipped):
+#-------------------------------------------------------------------------------
+    ##
+    ## uncompress msg to get a task
+    ##
+    msgUnzipped = zloads(msgZipped)
+    taskId = msgUnzipped["taskId"]
+    userCmd = msgUnzipped["userCmd"]
+    outFiles = msgUnzipped["outFiles"]
+    #doneFlag = msgUnzipped["doneFlag"] ## not used
+
+    ##
+    ## Run the task
+    ##
+    logger.info("    Running task %d..." % (taskId))
+    try:
+        p = subprocess.Popen(userCmd, shell=True, env=os.environ,
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        
+        ## Set g_userProcPid = forked child process id (this value will be sent
+        ## to send_hb_to_client function)
+        global g_userProcPid
+        g_userProcPid.value = p.pid
+    except Exception, detail:
+        logger.exception("Exception: Failed to run user command, %s (exit code = %d)" % \
+                         (userCmd, p.pid))
+        logger.exception("Detail: %s" % str(detail))
+
+    logger.debug("User command: %s" % (userCmd))
+    stdoutValue = p.communicate()[0]
+    p.wait()
+    p.poll()
+
+    ##
+    ## Prepare result to send back
+    ##
+    msgContainer = {}
+    msgContainer["taskId"] = taskId
+    msgContainer["userCmd"] = userCmd
+    msgContainer["outFiles"] = outFiles
+
+    if p.returncode == 0:
+        logger.info("    Task completed successfully.")
+
+        ##
+        ## Output file checking
+        ##
+        if len(outFiles):
+            ofs = outFiles.split(',')
+            logger.debug("Num output files = %d" % (len(ofs)))
+            outFileList = []
+            for i in range(len(ofs)):
+                outFileList.append(ofs[i])
+
+            ret, fSize = check_output(outFileList,
+                                    FILE_CHECK_INTERVAL,
+                                    FILE_CHECKING_MAX_TRIAL,
+                                    FILE_CHECK_INT_INC)
+            if not ret:
+                retMsg = "Failed to check output file(s): %s, file size = %s." % (ofs, fSize)
+                logger.critical(retMsg)
+                msgContainer["doneFlag"] = "-1"
+                msgContainer["retMsg"] = retMsg
+            else:
+                msgContainer["doneFlag"] = "1"
+                msgContainer["retMsg"] = "Output file checking is OK."
+        else:
+            msgContainer["doneFlag"] = "1"
+            msgContainer["retMsg"] = "No file(s) to check."
+    else:
+        logger.critical("Failed to execute a task, %s. User process returned non-zero exit code. stdout = %s" % \
+                        (userCmd, stdoutValue))
+        msgContainer["doneFlag"] = "-2"
+        msgContainer["retMsg"] = stdoutValue
+
+    msgZippedToSend = zdumps(msgContainer)
+
+    return msgZippedToSend
+
+
+"""
+A callback function whenever a message is received.
+
+@param ch: channel
+@param method: methodFrame
+@param props: pika connection property
+@param body: message recv'd
+"""
+#-------------------------------------------------------------------------------
+def on_request(ch, method, props, body):
+#-------------------------------------------------------------------------------
+    msgUnzipped = zloads(body)
+
+    ##
+    ## If client sends "terminate"
+    ##
+    if msgUnzipped["taskId"] == -9:
+        logger.info("Received TERM signal. Terminate myself.")
+        ##
+        ## Ref) http://gavinroy.com/deeper-down-the-rabbit-hole-of-message-redeli
+        ## Return back the message (the TERM message) in the queue
+        ## so that the other workers can get it.
+        ##
+        ch.basic_reject(delivery_tag=method.delivery_tag, requeue=True)
+        ch.stop_consuming()
+        ch.close()
+        
+        global g_recvHbFromClientProc
+        g_recvHbFromClientProc.terminate()
+        global g_sendHbToClientProc
+        g_sendHbToClientProc.terminate()
+        
+        sys.exit(0)
+
+    logger.info( "Received %r" % (msgUnzipped,) )
+
+    ##############################
+    response = run_something(body)
+    ##############################
+
+    logger.debug("return queue = %s", props.reply_to)
+    ch.basic_publish(exchange='', # nameless exchange
+                     routing_key=props.reply_to, # use the queue which the client created
+                     properties=pika.BasicProperties(
+                        delivery_mode = 2, # make message persistent
+                        correlation_id = props.correlation_id),
+                     body=response)
+
+    logger.info("    Send the result back to the client via '%s' queue." % (props.reply_to) )
+    logger.debug("   Tag id: %s " % (str(props.correlation_id)))
+
+    ## After this the message will be deleted from RabbitMQ
+    ## If this worker crashs while running a user command, this task will
+    ## be sent to other workers available
+    ch.basic_ack(delivery_tag=method.delivery_tag)
+
+    
+"""
+Check 1) existence, 2) size>0 for each file in outFiles
+
+@param outFiles: list of absolute paths to the output files to check
+@param waitSecOrig: sleep time between output file checking before retiral
+@param maxTrials: max trial for checking
+@param waitSecIncrease: wait time increase for retrial
+"""
+#-------------------------------------------------------------------------------
+def check_output(outFiles, waitSecOrig=3, maxTrials=3, waitSecIncrease=1.5):
+#-------------------------------------------------------------------------------
+    bFileExist = False
+    fSize = 0
+    fOk = False
+    trial = 0
+
+    for ofile in outFiles:
+        logger.info ("    Output file check: %s" % (ofile))
+
+        bFileExist = False
+        fSize = 0
+        fOk = False
+
+        while trial < maxTrials:
+            logger.info("    Output file checking. Trial# = %d" % (trial))
+
+            ## First, check file existence
+            bFileExist = os.path.exists(ofile)
+
+            ## If exist, check file size
+            if bFileExist and os.path.isfile(ofile):
+                fSize = os.path.getsize(ofile)
+                if fSize == 0:
+                    logger.info ("    File, %s is zero size." % (ofile))
+
+            ## if "-z" option is used, allow zero sized output file
+            global g_allowZeroOutputFile
+            if g_allowZeroOutputFile and fSize == 0: fSize = 1
+            
+            if bFileExist and fSize > 0:
+                fOk = True
+                logger.info ("    Output file '%s' is OK." % (ofile))
+                break
+            
+            ## Wait for initial wait time
+            time.sleep(waitSecOrig)
+            
+            ## Increase the wait time
+            waitSecOrig *= waitSecIncrease
+            trial += 1
+
+    return fOk, fSize
+
+
+"""
+Send heartbeats to the client
+
+@param qName: queue name for sending heartbeat
+@param hostName: hostname on which this worker is running
+@param rootPid: rootPid of this worker
+@param interval: time interval to send heartbeats to the client
+@param childPid: child pid for user command 
+"""
+#-------------------------------------------------------------------------------
+def send_hb_to_client_thread(qName, hostName, rootPid, interval, qChildPid):
+#-------------------------------------------------------------------------------
+    ## Remote broker (mq.nersc.gov)
+    rabbitConnection = RmqConnection()
+    conn = rabbitConnection.open()
+    ch = conn.channel()
+    
+    ## To do
+    ## Do we have to have a separate worker hb exchange?
+    #ch.exchange_declare(exchange=exchName,
+    #                    type='direct', durable=False, auto_delete=True)
+
+    while 1:
+        try:
+ 
+            ## To do
+            ## for checking out-of-mem
+            ## 1. On genepool node
+            ##    Need to get ram.c and v_mem.c, and compare them with sum(mem usages
+            ##    from all processes) to check out-of-mem
+            ## 2. On Mendel node
+            ##    Use "free" call for getting mem usage (%) for the node
+            ##    If >90% used, kill a process (selection strategy is needed)
+            ##
+            ## * Note: must cope with the fast mem consumption at the begining
+            ##   of the process
+            
+            if qChildPid.value == 0: childPid = rootPid
+            else:                    childPid = qChildPid.value
+            
+            ## Collect pids from process tree
+            pidListMerged = []
+            pidListRoot = get_pid_tree(rootPid)
+            if rootPid != childPid:
+                pidListChild = get_pid_tree(childPid)
+                pidListMerged = pidListRoot + pidListChild[1:]
+            else:
+                pidListMerged = pidListRoot
+            logger.debug("pids: %s" % (pidListMerged))
+     
+            vmemUsageList = []
+            vmemUsageList.extend([get_virtual_memory_usage(pid, 0.0, False) for pid in pidListMerged])
+            logger.debug("VMS: %s" % (vmemUsageList))
+            
+            rmemUsageList = []
+            rmemUsageList.extend([get_resident_memory_usage(pid, 0.0, False) for pid in pidListMerged])
+            logger.debug("RSS: %s" % (rmemUsageList))
+            
+            ## To do
+            #import psutil
+            #try:
+            #    userProcToCheck = psutil.Process(int(get_pid_tree(childPid)[0]))
+            #except:
+            #    userProcToCheck = psutil.Process(int(get_pid_tree(rootPid)[0]))
+            #    pass
+            #if userProcToCheck.is_running():        
+            #    mem_bytes = userProcToCheck.get_memory_info().rss
+            #    print float(mem_bytes)/1048576 ## MB
+            #    mem_bytes = userProcToCheck.get_memory_info().vms
+            #    print float(mem_bytes)/1048576 ## MB
+    
+            ## Collect cpu_usages for all pids in the tree and get max()
+            cpuLoadList = [get_cpu_load(pid) for pid in pidListMerged]
+            cpuLoad = max(cpuLoadList)
+            
+            ## Collect mem_usages for all pids in the tree and get sum() 
+            rmemUsage = sum(rmemUsageList)
+            vmemUsage = sum(vmemUsageList)
+            
+            ## Only get the run time of childPid
+            runTime = get_runtime(childPid)
+                
+            if cpuLoad == "": cpuLoad = 0.0
+            if runTime == "": runTime = 0
+    
+            ## get % mem used per node
+            ## This is for node-based scheduling
+            percUsedMem = get_total_mem_usage_per_node()
+            
+            numWorkersOnThisNode = get_num_tfmqworkers_on_node()
+            
+            msg = '%s %s %s %s %s %0.1f %0.1f %s %0.1f %d' % \
+                    (hostName,
+                    rootPid,        ## root pid in the process tree
+                    interval,
+                    childPid,       ## pid for the child shell process to run user command
+                    cpuLoad,
+                    rmemUsage,      ## RSS
+                    vmemUsage,      ## VMS
+                    runTime,        ## run time in sec
+                    percUsedMem,    ## %mem used on node
+                    numWorkersOnThisNode)
+            
+            ch.basic_publish(exchange='', routing_key=qName, body=msg)
+            
+            logger.debug("Send HB to the client")
+        
+        except Exception as e:
+            logger.critical("Something wrong with send_hb_to_client(): %s" % (e))
+            logger.critical("    msg: %s" % (msg))
+            logger.critical("    thread handle: %s" % (g_recvHbFromClientProc))
+            logger.critical("    conn=%s, ch=%s" % (conn, ch))
+            
+            
+            
+        ## To do
+        ## Need to start with shorted interval like (0.5-1 sec) for about 30 sec
+        ## from the beginning and then use the user specified interval
+        time.sleep(float(interval))
+
+    conn.close()
+
+
+"""
+Receive heartbeat from the client
+
+@param hbInt: heartbeat interval in sec
+@param timeOut: time out in sec (if no heartbeat for timeOut, will kill myself)
+@param ppid: parent process id for termination
+"""
+#-------------------------------------------------------------------------------
+def recv_hb_from_client_thread(hbInt, timeOut, ppid, exchName):
+#-------------------------------------------------------------------------------
+    ## Remote broker (mq.nersc.gov)
+    rabbitConnection = RmqConnection()
+    conn = rabbitConnection.open()
+    ch = conn.channel()
+    
+    ## Declare exchange
+    ch.exchange_declare(exchange=exchName,
+                        type='fanout', ## broadcasting
+                        durable=False,
+                        auto_delete=True)
+
+    ## Declare queue
+    hbQueueName = '%s_%s%s' % (getpass.getuser().upper(),
+                               uuid.uuid4(),
+                               CLIENT_HB_POSTFIX)
+    ch.queue_declare(queue=hbQueueName,
+                     durable=False, exclusive=True, auto_delete=True)
+    
+    ## bind exchange to queue
+    ch.queue_bind(exchange=exchName, queue=hbQueueName)
+    
+    logger.info("Listen to %s queue for the client's heartbeat." % (hbQueueName))
+
+    def panic():
+        logger.info("No heartbeat from the client for %s sec. Terminate myself!" % (timeOut))
+        ch.stop_consuming()
+        os.kill(int(ppid), signal.SIGTERM)
+        global g_recvHbFromClientProc
+        g_recvHbFromClientProc.terminate()
+        sys.exit(1)
+
+    noAck = False
+    while 1:
+        methodFrame, headerFrame, body = ch.basic_get(queue=hbQueueName, no_ack=True)
+        if int(timeOut) != 0 and methodFrame is None and headerFrame is None and body is None:
+            if noAck == False:
+                noAck = True
+                time.sleep(float(timeOut))
+                continue
+            else:
+                panic()
+        elif methodFrame is not None and headerFrame is not None and body is not None:
+            noAck = False
+            for i in range(int(methodFrame.message_count)):
+                methodFrame, headerFrame, body = ch.basic_get(queue=hbQueueName, no_ack=True)
+            logger.debug("Recv'd heartbeats from the client.")
+            
+        time.sleep(hbInt) ## 10 secs
+
+    conn.close()
+
+
+                
+#-------------------------------------------------------------------------------
+def main(argv):
+#-------------------------------------------------------------------------------
+    desc = u'taskfarmermq worker'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('-b', '--heartbeat',
+                        help='heartbeat interval in sec. Default=10',
+                        dest='hbInterval', required=False,
+                        default=WORKER_HB_SEND_INTERVAL) ## default 5 sec
+    parser.add_argument('-l', '--loglevel',
+                        help='loglevel (default=info)',
+                        dest='logLevel', required=False,
+                        default="info")
+    parser.add_argument('-q', '--taskqueue',
+                        help='task queue name',
+                        dest='taskQueueName', required=False,
+                        default="default")
+    parser.add_argument('-t', '--timeout',
+                        help='timeout in sec. Default=30 seconds',
+                        dest='timeOut', required=False,
+                        default=WORKER_TIMEOUT)
+    parser.add_argument('-z', '--zerofile', action='store_true',
+                        help='allow zero sized output file(s) (default=False)',
+                        dest='zeroFile', required=False)
+    parser.add_argument('-v', '--version', action='version', version=VERSION)
+    args = parser.parse_args()
+
+    ## Set globals
+    global g_allowZeroOutputFile
+    g_allowZeroOutputFile = args.zeroFile
+    
+    ## logger setting
+    setup_custom_logger(args.logLevel, WORKER_FILE_LOGGING)
+
+    ## Set task queue name with user's account name
+    taskQueueName = '%s_%s%s' % (getpass.getuser().upper(),
+                                 args.taskQueueName,
+                                 TASKQ_POSTFIX)
+    logger.info("RabbitMQ broker: %s" % (RMQ_HOST))
+    logger.info("Task queue name: %s" % (taskQueueName))
+
+    ## Remote broker (mq.nersc.gov)
+    rabbitConnection = RmqConnection()
+    conn = rabbitConnection.open()
+    ch = conn.channel()
+
+    ##
+    ## Declare task receiving queue (client --> worker)
+    ##
+    ## If you have a queueu that is durable, RabbitMQ will never lose our queue.
+    ## If you have a queue that is exclusive, then when the channel that declared
+    ## the queue is closed, the queue is deleted.
+    ## If you have a queue that is auto-deleted, then when there are no
+    ## subscriptions left on that queue it will be deleted.
+    ##
+    ch.queue_declare(queue=taskQueueName,
+                     durable=False, exclusive=False, auto_delete=True)
+    logger.info( 'Waiting for a request...' )
+
+    ##
+    ## Start heartbeat sending subrpocess
+    ##
+    workerHeartbeatQueueName = '%s_%s%s' % (getpass.getuser().upper(),
+                                            args.taskQueueName,
+                                            WORKER_HB_POSTFIX)
+    
+    ## To do: get the childl pid 
+    ## ps h -o pid --ppid
+    #logger.info(get_pid_tree(os.getpid()))
+    
+    global g_recvHbFromClientProc
+    g_recvHbFromClientProc = multiprocessing.Process(target=send_hb_to_client_thread,
+                                                     args=(workerHeartbeatQueueName,
+                                                           socket.gethostname(),
+                                                           os.getpid(),
+                                                           args.hbInterval,
+                                                           g_userProcPid)) ## this pid is effective only after user task process is forked.
+    g_recvHbFromClientProc.daemon = True
+    g_recvHbFromClientProc.start()
+    
+    logger.info("Start sending my heartbeat to the client in every %d sec to %s." % \
+                (int(args.hbInterval), workerHeartbeatQueueName))
+
+    clientHeartbeatExchangeName = '%s_%s%s' % (getpass.getuser().upper(),
+                                               args.taskQueueName, CLIENT_HB_EXCH)
+    global g_sendHbToClientProc
+    g_sendHbToClientProc = multiprocessing.Process(target=recv_hb_from_client_thread,
+                                                   args=(WORKER_HB_RECEIVE_INTERVAL,
+                                                         args.timeOut,
+                                                         os.getpid(),
+                                                         clientHeartbeatExchangeName))
+    g_sendHbToClientProc.daemon = True
+    g_sendHbToClientProc.start()
+    
+    if args.timeOut != 0:
+        logger.info("The worker timeout is set to %s sec. This worker will not check the client's heartbeat." % \
+                    (args.timeOut))
+
+    ##
+    ## Waiting for request
+    ##
+    ch.basic_qos(prefetch_count=1)
+    ch.basic_consume(on_request, queue=taskQueueName, no_ack=False)
+    ch.start_consuming()
+
+    conn.close()
+    g_recvHbFromClientProc.terminate()
+    g_sendHbToClientProc.terminate()
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
+
+
+## EOF
