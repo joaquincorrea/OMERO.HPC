@@ -51,4 +51,4 @@ Acknowledgements
 [ImageJ]:http://fiji.sc
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
 [xvfb]:
-[TaskFarmerMQ]:
+[TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/taskfarmermq
