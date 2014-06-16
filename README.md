@@ -9,6 +9,7 @@ Requirements
 ------------
 
   - [OMERO] server
+  - [TaskFarmerMQ]
   - [RabbitMQ]
   - [ImageJ]
   - [xvfv]
@@ -51,3 +52,4 @@ Acknowledgements
 [ImageJ]:http://fiji.sc
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
 [xvfb]:
+[TaskFarmerMQ]:
