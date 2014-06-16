@@ -24,7 +24,7 @@ image_dir=File.getParent(stack_dir);
 img=stack_dir;
 run("Trainable Weka Segmentation", "open=[" + img + "]");
 
-wait(1);
+//wait(1);
 selectWindow("Trainable Weka Segmentation");
 call("trainableSegmentation.Weka_Segmentation.loadClassifier", model_path);
 call("trainableSegmentation.Weka_Segmentation.applyClassifier", image_dir, image_name, "showResults=false", "storeResults=true", "probabilityMaps=false", out_file);

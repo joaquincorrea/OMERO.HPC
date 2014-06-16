@@ -1,9 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Fast Random Forest
-__author__ = 'jcorrea'
 
+"""
+weka_tfmq.ijm
+
+OMERO script
+Weka Fast RF segmentation using TaskFarmerMQ
+
+Joaquin Correa, Data and Analytics services
+JoaquinCorrea@lbl.gov
+National Energy Research Scientific Computing Center
+Lawrence Berkeley National Laboratory
+2014
 """
 
 IMAGEJ_PATH="/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64"
