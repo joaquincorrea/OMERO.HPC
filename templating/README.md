@@ -13,7 +13,7 @@ Requirements
 
 Python packages
 ---------------
-  - Pika
+  - Pika 
 
 Installation
 ------------
