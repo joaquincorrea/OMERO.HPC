@@ -3,14 +3,14 @@
 OMERO.HPC
 =========
 
-This is a HPC implementation of Weka environment Fast Random Forest that uses a pre-OMERO.fs OMERO server as the front-end.
+This is a HPC implementation of [Weka environment] Fast Random Forest that uses a pre-OMERO.fs OMERO server as the front-end.
 
 Requirements
 ------------
 
   - [OMERO] server
-  - RabbitMQ
-  - ImageJ
+  - [RabbitMQ]
+  - [ImageJ]
   
 Classifiers
 -----------
@@ -38,3 +38,6 @@ Acknowledgements
 
 [Seung-Jin Sul]:https://bitbucket.org/sulsj
 [OMERO]:https://www.openmicroscopy.org/
+[RabbitMQ]:http://www.rabbitmq.com/
+[ImageJ]:http://fiji.sc
+[Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
