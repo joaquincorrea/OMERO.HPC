@@ -11,12 +11,15 @@ Requirements
   - [OMERO] server
   - [RabbitMQ]
   - [ImageJ]
+  - [xvfv] & xvfv-run
   
 Classifiers
 -----------
 
 Sample
 ------
+  - images: A set of image files that will work with the given classifier
+  - classifier: Weka model file with 5 classes
 
 Python packages
 ---------------
@@ -25,6 +28,7 @@ Python packages
 How it works
 ------------
 ![alt tag](https://raw.github.com/jjcorreao/OMERO.HPC/master/readme/architecture.png)
+OMERO/SCRIPT/JOB/TaskFarmerMQ/TFMQ_Client/ImageJ_JOBS
 
 
 Installation
@@ -43,3 +47,4 @@ Acknowledgements
 [RabbitMQ]:http://www.rabbitmq.com/
 [ImageJ]:http://fiji.sc
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
+[xvfb]:
