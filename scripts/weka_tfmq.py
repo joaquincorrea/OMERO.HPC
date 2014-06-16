@@ -14,14 +14,15 @@ Lawrence Berkeley National Laboratory
 2014
 """
 
-IMAGEJ_PATH="/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64"
-XVFBRUN_PATH="/global/project/projectdirs/ngbi/resources/xvfb-run"
-OMERO_PATH="/global/project/projectdirs/ngbi/omero-0.7/OMERO.server/bin/omero"
-PBS_GEN="/global/project/projectdirs/ngbi/jobs/pbsgen_tfmq.sh"
-MACRO_PATH = "/global/project/projectdirs/ngbi/jobs/ij_macros/stack_out.ijm"
-MACRO_PATH2 = "/global/project/projectdirs/ngbi/jobs/ij_macros/trainable_weka_farmer_tfmq.ijm"
+import distutils
+OMERO_PATH=distutils.spawn.find_executable('omero')
+IMAGEJ_PATH=distutils.spawn.find_executable('ImageJ-linux64')
+XVFBRUN_PATH="resources/xvfb-run"
+PBS_GEN="templating/pbsgen_tfmq.sh"
+MACRO_PATH = "macros/stack_out.ijm"
+MACRO_PATH2 = "macros/weka_tfmq.ijm"
 
-GSCRATCH="/global/scratch2/sd/jcorrea"
+GSCRATCH = "/global/scratch2/sd/jcorrea"
 cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
 
 import omero

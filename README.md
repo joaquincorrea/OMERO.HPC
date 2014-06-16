@@ -11,11 +11,8 @@ Requirements
   - [OMERO] server
   - [RabbitMQ]
   - [ImageJ]
-  - [xvfv] & xvfv-run
+  - [xvfv]
   
-Classifiers
------------
-
 Sample
 ------
   - images: A set of image files that will work with the given classifier
@@ -33,9 +30,15 @@ OMERO/SCRIPT/JOB/TaskFarmerMQ/TFMQ_Client/ImageJ_JOBS
 
 Installation
 ------------
+
+
 ```sh
 
 ```
+
+Configuration
+-------------
+
 
 Acknowledgements
 ----------------
