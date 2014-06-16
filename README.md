@@ -43,6 +43,7 @@ Configuration
 
 Acknowledgements
 ----------------
+[Seung-Jin Sul]
 
 
 [Seung-Jin Sul]:https://bitbucket.org/sulsj
