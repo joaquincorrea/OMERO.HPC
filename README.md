@@ -24,6 +24,8 @@ Python packages
 
 How it works
 ------------
+![alt tag](https://raw.github.com/jjcorreao/OMERO.HPC/master/readme/architecture.png)
+
 
 Installation
 ------------
