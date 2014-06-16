@@ -9,12 +9,13 @@
 # DAS 2014
 # NERSC - LBNL
 # 
-# $ ./jobgen.sh <user> <dataset> <name> <uuid> <ijmacro> <ijmacro args> <outpath> <wtime> <pmem> <all_jobs> <nodes> > job.pbs
+# $ ./pbsgen_tfmq.sh <user> <dataset> <name> <uuid> <ijmacro> <ijmacro args> <outpath> <wtime> <pmem> <all_jobs> <nodes> > job.pbs
 # $ qsub job.pbs
 # $ rm job.pbs
 # ************************************
 
-ijpath=/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64
+#ijpath=/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64
+ijpath=`which ImageJ-linux64`
 xvfb_path=/global/project/projectdirs/ngbi/resources/xvfb-run
 OMERO_BIN=/global/project/projectdirs/ngbi/omero-0.7/OMERO.server/bin/omero
 OMERO_ENV=/project/projectdirs/ngbi/omero5/env_omero5
