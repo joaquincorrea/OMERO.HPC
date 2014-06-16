@@ -8,17 +8,27 @@ This is a HPC implementation of Weka environment Fast Random Forest that uses a 
 Requirements
 ------------
 
+  - [OMERO] server
   - RabbitMQ
   - ImageJ
+  
+Classifiers
+-----------
+
+Sample
+------
 
 Python packages
 ---------------
   - Pika 
 
+How it works
+------------
+
 Installation
 ------------
 ```sh
-git clone []
+
 ```
 
 Acknowledgements
@@ -27,3 +37,4 @@ Acknowledgements
 
 
 [Seung-Jin Sul]:https://bitbucket.org/sulsj
+[OMERO]:https://www.openmicroscopy.org/
