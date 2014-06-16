@@ -43,7 +43,8 @@ Configuration
 
 Acknowledgements
 ----------------
-[Seung-Jin Sul]
+  - This work was supported by the Laboratory Directed Research and Development Program of Lawrence Berkeley National Laboratory under U.S. Department of Energy Contract No. DE-AC02-05CH11231
+  - [Seung-Jin Sul]
 
 
 [Seung-Jin Sul]:https://bitbucket.org/sulsj
@@ -52,3 +53,4 @@ Acknowledgements
 [ImageJ]:http://fiji.sc
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
 [TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/taskfarmermq
+[xvfv]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
