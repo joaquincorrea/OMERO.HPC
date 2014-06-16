@@ -1,17 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
+# weka_tfmq.ijm
+#
+# OMERO script
+# Weka Fast RF segmentation using TaskFarmerMQ
+#
+# Joaquin Correa, Data and Analytics services
+# JoaquinCorrea@lbl.gov
+# National Energy Research Scientific Computing Center
+# Lawrence Berkeley National Laboratory
+# 2014
+
 """
-weka_tfmq.ijm
 
-OMERO script
-Weka Fast RF segmentation using TaskFarmerMQ
 
-Joaquin Correa, Data and Analytics services
-JoaquinCorrea@lbl.gov
-National Energy Research Scientific Computing Center
-Lawrence Berkeley National Laboratory
-2014
 """
 
 import distutils

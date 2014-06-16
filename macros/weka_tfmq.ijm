@@ -12,6 +12,7 @@
 // * ImageJ macro to run Weka_Segmentation on headless mode
 // *
 
+
 stri=getArgument();
 args=split(stri,"*");
 stack_dir=args[0];
