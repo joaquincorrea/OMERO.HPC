@@ -57,7 +57,7 @@ $OMERO_HOME/bin/omero web start
 Configuration
 -------------
 
-  - Edit ```py resources/taskfarmermq/Config.py``` to include your RabbitMQ configuration:
+  - Edit ```resources/taskfarmermq/Config.py``` to include your RabbitMQ configuration:
 
 ```py
 RMQ_HOST = ''
@@ -67,9 +67,13 @@ RMQ_VHOST = ''
 RMQ_PORT = ''
 ```
 
-  - Edit ```py weka_tfmq.py``` to include ```sh scratch```, ```sh cache_dir``` and path to ```sh qsub```
+  - Edit ```weka_tfmq.py``` to include ```GSCRATCH```,  ```cache_dir``` and path to ```qsub```
   
 ```py
+# i.g.
+# GSCRATCH = "/global/scratch2/sd/jcorrea"
+# cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
+# qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
 GSCRATCH = "/global/scratch2/sd/jcorrea"
 cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
 qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
@@ -90,5 +94,5 @@ Acknowledgements
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
 [TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/resources/taskfarmermq
 [xvfv]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
-[Shreyas Cholia]:
-[David Skinner]:
+[Shreyas Cholia]:https://github.com/shreddd
+[David Skinner]:https://github.com/deskinner
