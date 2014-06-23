@@ -10,7 +10,6 @@ Requirements
 
   - [OMERO] server
   - [RabbitMQ]
-  - [ImageJ]
   - [xvfv]
   
 Sample
