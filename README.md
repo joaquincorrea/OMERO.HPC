@@ -31,24 +31,49 @@ OMERO/SCRIPT/JOB/TaskFarmerMQ/TFMQ_Client/ImageJ_JOBS
 
 Installation
 ------------
-
+  - Stop OMERO.server and OMERO.web
 
 ```sh
-
 $OMERO_HOME/bin/omero admin stop
 $OMERO_HOME/bin/omero web stop
+```
+
+  - Clone repository
+  
+```sh
 cd $OMERO_HOME/lib/scripts
 mkdir tfmq_segmentation
 cd tfmq_segmentation
 git clone https://github.com/jjcorreao/OMERO.HPC.git
+```
+
+  - Start OMERO.server and OMERO.web
+
+```sh  
 $OMERO_HOME/bin/omero admin start
 $OMERO_HOME/bin/omero web start
-
 ```
 
 Configuration
 -------------
 
+  - Edit ```py resources/taskfarmermq/Config.py``` to include your RabbitMQ configuration:
+
+```py
+RMQ_HOST = ''
+RMQ_USER = ''
+RMQ_PASS = ''
+RMQ_VHOST = ''
+RMQ_PORT = ''
+```
+
+  - Edit ```py weka_tfmq.py``` to include ```sh scratch```, ```sh cache_dir``` and path to ```sh qsub```
+  
+```py
+GSCRATCH = "/global/scratch2/sd/jcorrea"
+cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
+qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
+```
 
 Acknowledgements
 ----------------
@@ -63,7 +88,7 @@ Acknowledgements
 [RabbitMQ]:http://www.rabbitmq.com/
 [ImageJ]:http://fiji.sc
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
-[TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/taskfarmermq
+[TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/resources/taskfarmermq
 [xvfv]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
 [Shreyas Cholia]:
 [David Skinner]:
