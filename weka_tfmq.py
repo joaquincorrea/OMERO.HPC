@@ -28,6 +28,7 @@ MACRO_PATH2 = "resources/macros/weka_tfmq.ijm"
 
 GSCRATCH = "/global/scratch2/sd/jcorrea"
 cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
+qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
 
 import omero
 import pickle
@@ -122,7 +123,7 @@ def weka_segmentation(conn, scriptParams, uuid):
 
         enableKeepAlive_time = (72*60*60)
         conn.c.enableKeepAlive(enableKeepAlive_time)
-        os.system("ssh %s '/usr/syscom/opt/torque/4.2.6/bin/qsub %s'" % (system, pbs_file))
+        os.system("ssh %s '%s %s'" % (system, qsub_path, pbs_file))
 
 def runAsScript():
 

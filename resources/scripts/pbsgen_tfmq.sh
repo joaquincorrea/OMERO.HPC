@@ -15,13 +15,18 @@
 # ************************************
 
 #ijpath=/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64
-ijpath=resources/ImageJ/ImageJ-linux64
-xvfb_path=resources/scripts/xvfb-run
-OMERO_BIN=/global/project/projectdirs/ngbi/omero-0.7/OMERO.server/bin/omero
-OMERO_ENV=/project/projectdirs/ngbi/omero5/env_omero5
+ijpath=$OMERO_HOME/lib/scripts/tfmq_segmentation/resources/ImageJ/ImageJ-linux64
+xvfb_path=$OMERO_HOME/lib/scripts/tfmq_segmentation/resources/scripts/xvfb-run
+OMERO_BIN=$OMERO_HOME/bin/omero
 
-VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
-TFMQ_PATH=/project/projectdirs/ngbi/jobs/tfmq
+#$OMERO_HOME/bin/omero admin stop
+#$OMERO_HOME/bin/omero web stop
+#cd $OMERO_HOME/lib/scripts
+#mkdir tfmq_segmentation
+#cd tfmq_segmentation
+#git clone https://github.com/jjcorreao/OMERO.HPC.git
+#$OMERO_HOME/bin/omero admin start
+#$OMERO_HOME/bin/omero web start
 
 user=$1
 dataset=$2
