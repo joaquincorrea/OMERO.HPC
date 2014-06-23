@@ -9,7 +9,6 @@ Requirements
 ------------
 
   - [OMERO] server
-  - [TaskFarmerMQ]
   - [RabbitMQ]
   - [ImageJ]
   - [xvfv]
@@ -74,9 +73,9 @@ RMQ_PORT = ''
 # GSCRATCH = "/global/scratch2/sd/jcorrea"
 # cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
 # qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
-GSCRATCH = "/global/scratch2/sd/jcorrea"
-cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
-qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
+GSCRATCH = ""
+cache_dir = ""
+qsub_path=""
 ```
 
 Acknowledgements
