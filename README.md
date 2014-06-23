@@ -35,6 +35,15 @@ Installation
 
 ```sh
 
+$OMERO_HOME/bin/omero admin stop
+$OMERO_HOME/bin/omero web stop
+cd $OMERO_HOME/lib/scripts
+mkdir tfmq_segmentation
+cd tfmq_segmentation
+git clone https://github.com/jjcorreao/OMERO.HPC.git
+$OMERO_HOME/bin/omero admin start
+$OMERO_HOME/bin/omero web start
+
 ```
 
 Configuration

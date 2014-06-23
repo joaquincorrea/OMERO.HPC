@@ -15,8 +15,8 @@
 # ************************************
 
 #ijpath=/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64
-ijpath=`which ImageJ-linux64`
-xvfb_path=/global/project/projectdirs/ngbi/resources/xvfb-run
+ijpath=resources/ImageJ/ImageJ-linux64
+xvfb_path=resources/scripts/xvfb-run
 OMERO_BIN=/global/project/projectdirs/ngbi/omero-0.7/OMERO.server/bin/omero
 OMERO_ENV=/project/projectdirs/ngbi/omero5/env_omero5
 
