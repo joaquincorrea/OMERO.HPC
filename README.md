@@ -11,15 +11,12 @@ Requirements
   - [OMERO] server
   - [RabbitMQ]
   - [xvfv]
+  - [Pika]
   
 Sample
 ------
-  - images: A set of image files that will work with the given classifier
-  - classifier: Weka model file with 5 classes
-
-Python packages
----------------
-  - Pika 
+  - ```sample/images/```: A set of image files that will work with the given classifier
+  - ```sample/classifiers/```: Weka .model file with 5 classes
 
 How it works
 ------------
@@ -31,52 +28,63 @@ Installation
 ------------
   - Stop OMERO.server and OMERO.web
 
-```sh
-$OMERO_HOME/bin/omero admin stop
-$OMERO_HOME/bin/omero web stop
-```
+    ```sh
+    $OMERO_HOME/bin/omero admin stop
+    $OMERO_HOME/bin/omero web stop
+    ```
 
   - Clone repository
   
-```sh
-cd $OMERO_HOME/lib/scripts
-mkdir tfmq_segmentation
-cd tfmq_segmentation
-git clone https://github.com/jjcorreao/OMERO.HPC.git
-```
+    ```sh
+    cd $OMERO_HOME/lib/scripts
+    git clone https://github.com/jjcorreao/OMERO.HPC.git
+    ```
+
+  - Install [xvfb]
+  
+  - Install [Pika]
+  
+    ```sh
+    pip install pika
+    ```
+  
+    or:
+
+    ```sh
+    easy_install pika
+    ```
+
+  - Install [RabbitMQ]
 
   - Start OMERO.server and OMERO.web
 
-```sh  
-$OMERO_HOME/bin/omero admin start
-$OMERO_HOME/bin/omero web start
-```
+    ```sh  
+    $OMERO_HOME/bin/omero admin start
+    $OMERO_HOME/bin/omero web start
+    ```
 
 Configuration
 -------------
 
+  - Edit ```weka_tfmq.py``` to include ```OMERO_HOME```, ```GSCRATCH```, ```cache_dir``` and path to ```qsub```
+  
+    ```py
+    OMERO_HOME="/usr/local/"
+    GSCRATCH = "/global/scratch2/sd/jcorrea"
+    cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
+    qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
+    ```
+
   - Edit ```resources/taskfarmermq/Config.py``` to include your RabbitMQ configuration:
 
-```py
-RMQ_HOST = ''
-RMQ_USER = ''
-RMQ_PASS = ''
-RMQ_VHOST = ''
-RMQ_PORT = ''
-```
-
-  - Edit ```weka_tfmq.py``` to include ```GSCRATCH```,  ```cache_dir``` and path to ```qsub```
-  
-```py
-# i.g.
-# GSCRATCH = "/global/scratch2/sd/jcorrea"
-# cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
-# qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
-GSCRATCH = ""
-cache_dir = ""
-qsub_path=""
-```
-
+    ```py
+    RMQ_HOST = ''
+    RMQ_USER = ''
+    RMQ_PASS = ''
+    RMQ_VHOST = ''
+    RMQ_PORT = ''
+    ```
+    
 Acknowledgements
 ----------------
   - This work was supported by the Laboratory Directed Research and Development Program of Lawrence Berkeley National Laboratory under U.S. Department of Energy Contract No. DE-AC02-05CH11231
@@ -94,3 +102,4 @@ Acknowledgements
 [xvfv]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
 [Shreyas Cholia]:https://github.com/shreddd
 [David Skinner]:https://github.com/deskinner
+[Pika]:http://pika.readthedocs.org/en/latest/

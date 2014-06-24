@@ -18,21 +18,16 @@
 
 """
 
-import distutils
-OMERO_PATH=distutils.spawn.find_executable('omero')
-IMAGEJ_PATH="resources/ImageJ/ImageJ-linux64"
-XVFBRUN_PATH="resources/scripts/xvfb-run"
-PBS_GEN="resources/scripts/pbsgen_tfmq.sh"
-MACRO_PATH = "resources/macros/stack_out.ijm"
-MACRO_PATH2 = "resources/macros/weka_tfmq.ijm"
 
+OMERO_HOME="/usr/local/"
 GSCRATCH = "/global/scratch2/sd/jcorrea"
 cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
 qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
 
+import os
 import omero
 import pickle
-import os
+
 from omero.gateway import BlitzGateway
 import omero.scripts as scripts
 from omero.rtypes import *
@@ -60,6 +55,14 @@ import tempfile
 import subprocess
 
 import math
+
+OMERO_PATH=os.path.join(OMERO_HOME,"bin/omero")
+SCRIPT_PATH=os.path.join(OMERO_HOME,"lib/scripts/OMERO.HPC")
+IMAGEJ_PATH=os.path.join(SCRIPT_PATH, "resources/ImageJ/ImageJ-linux64")
+XVFBRUN_PATH=os.path.join(SCRIPT_PATH,"resources/scripts/xvfb-run")
+PBS_GEN=os.path.join(SCRIPT_PATH,"resources/scripts/pbsgen_tfmq.sh")
+MACRO_PATH = os.path.join(SCRIPT_PATH,"resources/macros/stack_out.ijm")
+MACRO_PATH2 = os.path.join(SCRIPT_PATH,"resources/macros/weka_tfmq.ijm")
 
 def weka_segmentation(conn, scriptParams, uuid):
 

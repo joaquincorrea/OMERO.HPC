@@ -15,18 +15,9 @@
 # ************************************
 
 #ijpath=/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64
-ijpath=$OMERO_HOME/lib/scripts/tfmq_segmentation/resources/ImageJ/ImageJ-linux64
-xvfb_path=$OMERO_HOME/lib/scripts/tfmq_segmentation/resources/scripts/xvfb-run
+ijpath=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/ImageJ/ImageJ-linux64
+xvfb_path=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/scripts/xvfb-run
 OMERO_BIN=$OMERO_HOME/bin/omero
-
-#$OMERO_HOME/bin/omero admin stop
-#$OMERO_HOME/bin/omero web stop
-#cd $OMERO_HOME/lib/scripts
-#mkdir tfmq_segmentation
-#cd tfmq_segmentation
-#git clone https://github.com/jjcorreao/OMERO.HPC.git
-#$OMERO_HOME/bin/omero admin start
-#$OMERO_HOME/bin/omero web start
 
 user=$1
 dataset=$2
@@ -73,10 +64,12 @@ module load python_base
 source ${VENV}/bin/activate
 
 # taskfarmeMQ listener
-${TFMQ_PATH}/run_8_tfmq-workers.sh &
+${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/scripts/run_8_tfmq-workers.sh &
+#${TFMQ_PATH}/run_8_tfmq-workers.sh &
 
 # taskfarmeMQ client
-${TFMQ_PATH}/tfmq-client -i ${all_jobs}
+${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/taskfarmermq/tfmq-client -i ${all_jobs}
+#${TFMQ_PATH}/tfmq-client -i ${all_jobs}
 
 # Stack merge
 ${xvfb_path} -a ${ijpath} -- -macro ${ijmacro} ${ijargs} -batch
