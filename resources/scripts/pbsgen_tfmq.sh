@@ -59,9 +59,8 @@ export _JAVA_OPTIONS='-Djava.io.tmpdir=$SCRATCH -XX:-UseParallelGC'
 
 cd ${PBS_O_WORKDIR}
 
-module load python_base
-
-source ${VENV}/bin/activate
+#module load python_base
+#source ${VENV}/bin/activate
 
 # taskfarmeMQ listener
 ${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/scripts/run_8_tfmq-workers.sh &

@@ -3,13 +3,13 @@
 # module load python
 # module load taskfarmermq/2.1
 
-module load python_base
-export VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
-export TFMQ_PATH=/project/projectdirs/ngbi/jobs/tfmq
-
-source /project/projectdirs/ngbi/jobs/tfmq/python_test/bin/activate
-
-export PATH=$PATH:$(pwd)
+#module load python_base
+#export VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
+#export TFMQ_PATH=/project/projectdirs/ngbi/jobs/tfmq
+#
+#source /project/projectdirs/ngbi/jobs/tfmq/python_test/bin/activate
+#
+#export PATH=$PATH:$(pwd)
 
 for i in {1..8}
 do
