@@ -5,12 +5,16 @@ OMERO.HPC
 
 This is a HPC implementation of [Weka environment] Fast Random Forest that uses a pre-OMERO.fs OMERO server as the front-end.
 
-Requirements
-------------
+System Dependencies
+-------------------
 
   - [OMERO] server
   - [RabbitMQ]
-  - [xvfv]
+  - [xvfb]
+  
+Python Dependencies
+-------------------
+
   - [Pika]
   
 Sample
@@ -93,13 +97,13 @@ Acknowledgements
   - [Seung-Jin Sul]
 
 
-[Seung-Jin Sul]:https://bitbucket.org/sulsj
+[Seung-Jin Sul]:https://github.com/sulsj
 [OMERO]:https://www.openmicroscopy.org/
 [RabbitMQ]:http://www.rabbitmq.com/
 [ImageJ]:http://fiji.sc
 [Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
 [TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/resources/taskfarmermq
-[xvfv]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
+[xvfb]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
 [Shreyas Cholia]:https://github.com/shreddd
 [David Skinner]:https://github.com/deskinner
 [Pika]:http://pika.readthedocs.org/en/latest/
