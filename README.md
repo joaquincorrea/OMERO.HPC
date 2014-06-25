@@ -3,7 +3,7 @@
 OMERO.HPC
 =========
 
-This is a HPC implementation of [Weka environment] Fast Random Forest that uses a pre-OMERO.fs OMERO server as the front-end.
+This is a HPC implementation of [Weka] environment Fast Random Forest that uses a pre-OMERO.fs OMERO server as the front-end.
 
 System Dependencies
 -------------------
@@ -24,8 +24,15 @@ Sample
 
 How it works
 ------------
+
+This work illustrates the deployment of custom-tailored image-processing algorithms and successful integration of a 
+suite of universally used processing software among the biology community into an OMERO-based science gateway 
+using HPC resources from the National Energy Research Scientific Computing Center ([NERSC]).
+
 ![alt tag](https://raw.github.com/jjcorreao/OMERO.HPC/master/readme/architecture.png)
-OMERO/SCRIPT/JOB/TaskFarmerMQ/TFMQ_Client/ImageJ_JOBS
+Architectural design. From top to bottom: (a) Data generation: National Laboratories, Universities and 
+Collaborators (b) Data transfer to HPC facility (c) Web infrastructure: [Science gateways] and [OMERO] (d) 
+Image processing stack: ImageJ([FIJI]), [Weka], [Scikit learn], [VLFeat], [IMOD], [CellProfiler] and [UCSF Chimera].
 
 
 Installation
@@ -108,9 +115,17 @@ Acknowledgements
 [OMERO]:https://www.openmicroscopy.org/
 [RabbitMQ]:http://www.rabbitmq.com/
 [ImageJ]:http://fiji.sc
-[Weka environment]:http://www.cs.waikato.ac.nz/ml/weka/
+[Weka]:http://www.cs.waikato.ac.nz/ml/weka/
 [TaskFarmerMQ]:https://github.com/jjcorreao/OMERO.HPC/tree/master/resources/taskfarmermq
 [xvfb]:http://www.x.org/archive/X11R7.7/doc/man/man1/Xvfb.1.xhtml
 [Shreyas Cholia]:https://github.com/shreddd
 [David Skinner]:https://github.com/deskinner
 [Pika]:http://pika.readthedocs.org/en/latest/
+[NERSC]:http://www.nersc.gov
+[Science gateways]:
+[Scikit learn]:
+[FIJI]:
+[VLFeat]:
+[IMOD]:
+[CellProfiler]:
+[UCSF Chimera]:
