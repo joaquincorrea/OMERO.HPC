@@ -14,10 +14,13 @@
 # $ rm job.pbs
 # ************************************
 
-#ijpath=/global/project/projectdirs/ngbi/resources/ImageJ/ImageJ-linux64
+OMERO_HOME=/project/projectdirs/ngbi/omero5/OMERO.server
 ijpath=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/ImageJ/ImageJ-linux64
 xvfb_path=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/scripts/xvfb-run
+TFMQ_PATH=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/taskfarmermq/
+VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
 OMERO_BIN=$OMERO_HOME/bin/omero
+SCRATCH=/global/scratch2/sd/jcorrea
 
 user=$1
 dataset=$2
@@ -41,11 +44,6 @@ all_jobs=${10}
 
 nodes_v=${11}
 ppn_v=8
-
-export OMERO_HOME=$OMERO_HOME
-export TFMQ_PATH=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/taskfarmermq/
-export xvfb_path=$xvfb_path
-export VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
 
 cat << EOF
 
