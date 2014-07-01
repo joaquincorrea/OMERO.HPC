@@ -21,7 +21,7 @@
 
 OMERO_HOME="/project/projectdirs/ngbi/omero5/OMERO.server"
 GSCRATCH = "/global/scratch2/sd/jcorrea"
-cache_dir = os.path.join(GSCRATCH, "ngbi/tmp")
+cache_dir = os.path.join(GSCRATCH, 'ngbi/tmp')
 qsub_path= "/usr/syscom/opt/torque/4.2.6/bin/qsub"
 
 import os
