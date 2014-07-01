@@ -8,7 +8,7 @@ This is a HPC implementation of [Weka] environment Fast Random Forest that uses 
 System Dependencies
 -------------------
 
-  - [OMERO] server
+  - [OMERO]
   - [RabbitMQ]
   - [xvfb]
   
