@@ -19,10 +19,10 @@
 """
 
 
-OMERO_HOME="/usr/local/"
+OMERO_HOME="/project/projectdirs/ngbi/omero5/OMERO.server"
 GSCRATCH = "/global/scratch2/sd/jcorrea"
-cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
-qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
+cache_dir = os.path.join(GSCRATCH, "ngbi/tmp")
+qsub_path= "/usr/syscom/opt/torque/4.2.6/bin/qsub"
 
 import os
 import omero
@@ -132,7 +132,7 @@ def runAsScript():
 
     dataTypes = [rstring('Image')]
 
-    models_path="sample/classifiers/"
+    models_path=os.path.join(SCRIPT_PATH, "sample/classifiers/")
     systems=['carver']
 
     segmentationModel = []

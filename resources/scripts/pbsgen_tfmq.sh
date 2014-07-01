@@ -59,16 +59,16 @@ export _JAVA_OPTIONS='-Djava.io.tmpdir=$SCRATCH -XX:-UseParallelGC'
 
 cd ${PBS_O_WORKDIR}
 
-#module load python_base
-#source ${VENV}/bin/activate
+module load python_base
+source ${VENV}/bin/activate
 
 # taskfarmeMQ listener
 ${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/scripts/run_8_tfmq-workers.sh &
-#${TFMQ_PATH}/run_8_tfmq-workers.sh &
+${TFMQ_PATH}/run_8_tfmq-workers.sh &
 
 # taskfarmeMQ client
 ${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/taskfarmermq/tfmq-client -i ${all_jobs}
-#${TFMQ_PATH}/tfmq-client -i ${all_jobs}
+${TFMQ_PATH}/tfmq-client -i ${all_jobs}
 
 # Stack merge
 ${xvfb_path} -a ${ijpath} -- -macro ${ijmacro} ${ijargs} -batch
