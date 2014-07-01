@@ -1,15 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="sgn02">
-    <serverData>
-      <paths name="sgn02">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/project/projectdirs/ngbi/omero5/OMERO.server/lib/scripts" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-    </serverData>
-  </component>
+  <component name="PublishConfigData" persistUploadOnCheckin="false" />
 </project>
 
