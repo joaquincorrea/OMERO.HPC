@@ -122,10 +122,10 @@ Acknowledgements
 [David Skinner]:https://github.com/deskinner
 [Pika]:http://pika.readthedocs.org/en/latest/
 [NERSC]:http://www.nersc.gov
-[Science gateways]:
-[Scikit learn]:
-[FIJI]:
-[VLFeat]:
-[IMOD]:
-[CellProfiler]:
-[UCSF Chimera]:
+[Science gateways]:http://www.nersc.gov/users/science-gateways/
+[Scikit learn]:http://scikit-learn.org
+[FIJI]:http://fiji.sc
+[VLFeat]:http://vlfeat.org
+[IMOD]:http://bio3d.colorado.edu/imod/
+[CellProfiler]:http://cellprofiler.org
+[UCSF Chimera]:https://www.cgl.ucsf.edu/chimera/
