@@ -21,6 +21,7 @@ TFMQ_PATH=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/taskfarmermq/
 VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
 OMERO_BIN=$OMERO_HOME/bin/omero
 SCRATCH=/global/scratch2/sd/jcorrea
+OMERO_ENV=/project/projectdirs/ngbi/omero5/env_omero5
 
 user=$1
 dataset=$2
@@ -67,14 +68,12 @@ source ${VENV}/bin/activate
 
 # taskfarmeMQ listener
 ${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/scripts/run_8_tfmq-workers.sh &
-${TFMQ_PATH}/run_8_tfmq-workers.sh &
 
 # taskfarmeMQ client
 ${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/taskfarmermq/tfmq-client -i ${all_jobs}
-${TFMQ_PATH}/tfmq-client -i ${all_jobs}
 
 # Stack merge
-${xvfb_path} -a ${ijpath} -- -macro ${ijmacro} ${ijargs} -batch
+${OMERO_HOME}/lib/scripts/OMERO.HPC/resources/scripts/xvfb-run -a ${ijpath} -- -macro ${ijmacro} ${ijargs} -batch
 
 ssh jcorrea@sgn02 'source ~/.bashrc; . /usr/share/Modules/init/bash; source ${OMERO_ENV}; omero import -s sgn02 -d ${dataset} -n ${name} ${outpath}/segmented_map.tif -k ${uuid}'
 
