@@ -80,10 +80,10 @@ Configuration
   - Edit ```weka_tfmq.py``` to include ```OMERO_HOME```, ```GSCRATCH```, ```cache_dir``` and path to ```qsub```
   
     ```py
-    OMERO_HOME="/usr/local/"
-    GSCRATCH = "/global/scratch2/sd/jcorrea"
-    cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"
-    qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"
+    OMERO_HOME="/usr/local/"                            # Path to $OMERO_HOME on system hosting OMERO.web
+    GSCRATCH = "/global/scratch2/sd/jcorrea"            # Path to global scratch on HPC system
+    cache_dir = "/global/scratch2/sd/jcorrea/ngbi/tmp"  # Path to tmp on HPC system
+    qsub_path="/usr/syscom/opt/torque/4.2.6/bin/qsub"   # Path to qsub bin on HPC system
     ```
 
   - Edit ```resources/taskfarmermq/Config.py``` to include your RabbitMQ configuration:
@@ -102,6 +102,12 @@ Configuration
     ```sh
     ssh jcorrea@sgn02 'source ~/.bashrc; . /usr/share/Modules/init/bash; source ${OMERO_ENV}; omero import -s sgn02 -d ${dataset} -n ${name} ${outpath}/segmented_map.tif -k ${uuid}'
     ```
+    
+  - Setup ssh-keys or other authentication mechanism between the system hosting OMERO.web and the HPC system 
+  
+Running on a ```virtualenv```?
+------------------------------
+
   
 Acknowledgements
 ----------------
@@ -110,6 +116,13 @@ Acknowledgements
   - [David Skinner]
   - [Seung-Jin Sul]
 
+Hosted at NERSC
+----------------
+  - Integrated tools for NexGen Bio-imaging ([NGBI])
+  
+Presentations, Papers, Conferences
+----------------------------------
+  - 
 
 [Seung-Jin Sul]:https://github.com/sulsj
 [OMERO]:https://www.openmicroscopy.org/
@@ -129,3 +142,4 @@ Acknowledgements
 [IMOD]:http://bio3d.colorado.edu/imod/
 [CellProfiler]:http://cellprofiler.org
 [UCSF Chimera]:https://www.cgl.ucsf.edu/chimera/
+[NGBI]:http://ngbi.nersc.gov

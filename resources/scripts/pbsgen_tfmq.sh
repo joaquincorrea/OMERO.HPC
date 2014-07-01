@@ -42,6 +42,11 @@ all_jobs=${10}
 nodes_v=${11}
 ppn_v=8
 
+OMERO_HOME=$OMERO_HOME
+TFMQ_PATH=$OMERO_HOME/lib/scripts/OMERO.HPC/resources/taskfarmermq/
+xvfb_path=$xvfb_path
+VENV=/project/projectdirs/ngbi/jobs/tfmq/python_test
+
 cat << EOF
 
 #PBS -S /bin/bash

@@ -15,7 +15,7 @@ for i in {1..8}
 do
     # tfmq-worker -b 3 -t 30 -q tfmqtaskqueue &
 #    /project/projectdirs/ngbi/jobs/tfmq/tfmq-worker
-    resources/taskfarmermq/tfmq-worker -b 3 -t 10 &
+    $OMERO_HOME/lib/scripts/OMERO.HPC/resources/taskfarmermq/tfmq-worker -b 3 -t 10 &
     #sleep 2
 done
 wait
