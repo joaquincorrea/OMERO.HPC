@@ -40,15 +40,15 @@ Installation
   - Stop OMERO.server and OMERO.web
 
     ```sh
-    $OMERO_HOME/bin/omero admin stop
-    $OMERO_HOME/bin/omero web stop
+    $ $OMERO_HOME/bin/omero admin stop
+    $ $OMERO_HOME/bin/omero web stop
     ```
 
   - Clone repository
   
     ```sh
-    cd $OMERO_HOME/lib/scripts
-    git clone https://github.com/jjcorreao/OMERO.HPC.git
+    $ cd $OMERO_HOME/lib/scripts
+    $ git clone https://github.com/jjcorreao/OMERO.HPC.git
     ```
 
   - Install [xvfb]
@@ -56,13 +56,13 @@ Installation
   - Install [Pika]
   
     ```sh
-    pip install pika
+    $ pip install pika
     ```
   
     or:
 
     ```sh
-    easy_install pika
+    $ easy_install pika
     ```
 
   - Install [RabbitMQ]
@@ -70,8 +70,8 @@ Installation
   - Start OMERO.server and OMERO.web
 
     ```sh  
-    $OMERO_HOME/bin/omero admin start
-    $OMERO_HOME/bin/omero web start
+    $ $OMERO_HOME/bin/omero admin start
+    $ $OMERO_HOME/bin/omero web start
     ```
 
 Configuration
@@ -105,10 +105,6 @@ Configuration
     
   - Setup ssh-keys or other authentication mechanism between the system hosting OMERO.web and the HPC system 
   
-Running on a ```virtualenv```?
-------------------------------
-
-  
 Acknowledgements
 ----------------
   - This work was supported by the Laboratory Directed Research and Development Program of Lawrence Berkeley National Laboratory under U.S. Department of Energy Contract No. DE-AC02-05CH11231
@@ -120,9 +116,10 @@ Hosted at NERSC
 ----------------
   - Integrated tools for NexGen Bio-imaging ([NGBI])
   
-Presentations, Papers, Conferences
+TO DO list:
 ----------------------------------
-  - 
+  - ```virtualenv``` configuration
+  - List presentations, publications, etc.
 
 [Seung-Jin Sul]:https://github.com/sulsj
 [OMERO]:https://www.openmicroscopy.org/
