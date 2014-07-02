@@ -119,7 +119,7 @@ Hosted at NERSC
 TO DO list:
 ----------------------------------
   - ```virtualenv``` configuration
-  - List presentations, publications, etc.
+  - List presentations, publications, etc. 
 
 [Seung-Jin Sul]:https://github.com/sulsj
 [OMERO]:https://www.openmicroscopy.org/
