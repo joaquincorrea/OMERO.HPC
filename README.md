@@ -19,8 +19,9 @@ Python Dependencies
   
 Sample
 ------
-  - ```sample/images/```: A set of image files that will work with the given classifier
+  - ```sample/images/```: An image that will work with the given classifier
   - ```sample/classifiers/```: Weka .model file with 5 classes
+  - ```sample/results/```: Segmentation results and probability map
 
 How it works
 ------------
