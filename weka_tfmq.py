@@ -21,10 +21,9 @@
 import os
 
 OMERO_HOME="/project/projectdirs/ngbi/omero5/OMERO.server"
-GSCRATCH = "/global/scratch2/sd/jcorrea"
+GSCRATCH = "/global/scratch2/sd/jcorrea" #TODO: specify scratch per user
 cache_dir = os.path.join(GSCRATCH, "ngbi/tmp")
-qsub_path= "/usr/syscom/opt/torque/4.2.6/bin/qsub"
-
+qsub_path= "/usr/syscom/opt/torque/4.2.6/bin/qsub" #TODO: specify qsub per system
 
 import omero
 import pickle
@@ -69,6 +68,8 @@ def weka_segmentation(conn, scriptParams, uuid):
 
 
     model = scriptParams["Segmentation_model"]
+    big_mem = scriptParams["Big_memory_nodes"] #TODO: implement big memory nodes
+
     model_path=model
 
     user = conn.getUser()
